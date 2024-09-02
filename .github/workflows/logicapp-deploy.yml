@@ -1,7 +1,7 @@
 name: Build and Deploy Logic App. 
 
 on:  
-  workflow_call:
+  workflow_dispatch:
     inputs:
       LogicApp_Name:
         required: true
@@ -13,11 +13,11 @@ on:
         required: true
         type: 'string'
 
-    secrets:
-      Azure_Secret:
-        required: true
-      GH_PAT_CUSTOMERDMS_LOGICAPP_URL_REDIRECT:
-        required: true
+    # secrets:
+    #   Azure_Secret:
+    #     required: true
+    #   GH_PAT_CUSTOMERDMS_LOGICAPP_URL_REDIRECT:
+    #     required: true
 
 jobs:
   logic_app_build: 
@@ -30,8 +30,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: 'tr/customerdms-logicapp-url-redirect'
-        ref: 'feat/workflow-changes'
-        token: ${{ secrets.GH_PAT_CUSTOMERDMS_LOGICAPP_URL_REDIRECT }}
+        ref: 'main'
+        # token: ${{ secrets.GH_PAT_CUSTOMERDMS_LOGICAPP_URL_REDIRECT }}
         path: logicapp-url-redirect-repo
     - name: Package logic app
       run: (cd logicapp-url-redirect-repo; mkdir output; ls; zip -r ./output/logic.zip . -x .\* -x ".gitignore" -x "README")
@@ -53,8 +53,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: 'tr/customerdms-logicapp-url-redirect'
-        ref: 'feat/workflow-changes'
-        token: ${{ secrets.GH_PAT_CUSTOMERDMS_LOGICAPP_URL_REDIRECT }}
+        ref: 'main'
+        # token: ${{ secrets.GH_PAT_CUSTOMERDMS_LOGICAPP_URL_REDIRECT }}
         path: logicapp-url-redirect-repo
     - name: Login via Az module
       uses: azure/login@v1
