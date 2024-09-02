@@ -6,16 +6,16 @@
                 "type": "Compose",
                 "inputs": "@addProperty(triggerOutputs()?['headers'],'Authorization',triggerOutputs()?['headers']['token'])",
                 "runAfter": {
-                    "Parse_JSON": [
+                    "Parse_JSON_changed_by_Shiv": [
                         "SUCCEEDED"
                     ]
                 }
             },
             "Compose_-_Decode_Base_64": {
                 "type": "Compose",
-                "inputs": "@decodeBase64(body('HTTP_Call_to_Child_Logic_App'))",
+                "inputs": "@decodeBase64(body('HTTP_Call_to_Child_Logic_App_changed'))",
                 "runAfter": {
-                    "HTTP_Call_to_Child_Logic_App": [
+                    "HTTP_Call_to_Child_Logic_App_changed": [
                         "SUCCEEDED"
                     ]
                 }
@@ -26,7 +26,7 @@
                     "and": [
                         {
                             "equals": [
-                                "@body('Parse_JSON')?['repository']",
+                                "@body('Parse_JSON_changed_by_Shiv')?['repository']",
                                 "AKK"
                             ]
                         }
@@ -72,7 +72,7 @@
                                 "and": [
                                     {
                                         "equals": [
-                                            "@body('Parse_JSON')?['repository']",
+                                            "@body('Parse_JSON_changed_by_Shiv')?['repository']",
                                             "MSE"
                                         ]
                                     }
@@ -117,7 +117,7 @@
                                         "kind": "Http",
                                         "inputs": {
                                             "statusCode": 200,
-                                            "body": "Invalid repository name - @{body('Parse_JSON')?['repository']}\n\n"
+                                            "body": "Invalid repository name - @{body('Parse_JSON_changed_by_Shiv')?['repository']}\n\n"
                                         }
                                     }
                                 }
@@ -131,7 +131,7 @@
                     ]
                 }
             },
-            "HTTP_Call_to_Child_Logic_App": {
+            "HTTP_Call_to_Child_Logic_App_changed": {
                 "type": "Http",
                 "inputs": {
                     "uri": "@parameters('ChildLogicApp')",
@@ -151,7 +151,7 @@
                     }
                 }
             },
-            "Parse_JSON": {
+            "Parse_JSON_changed_by_Shiv": {
                 "type": "ParseJson",
                 "inputs": {
                     "content": "@outputs('Compose_-_Decode_Base_64')",
