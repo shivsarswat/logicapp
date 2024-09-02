@@ -1,0 +1,229 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Add_Authorization_property_into_header": {
+                "type": "Compose",
+                "inputs": "@addProperty(triggerOutputs()?['headers'],'Authorization',triggerOutputs()?['headers']['token'])",
+                "runAfter": {
+                    "Parse_JSON": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Compose_-_Decode_Base_64": {
+                "type": "Compose",
+                "inputs": "@decodeBase64(body('HTTP_Call_to_Child_Logic_App'))",
+                "runAfter": {
+                    "HTTP_Call_to_Child_Logic_App": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Condition_to_check_if_AKK": {
+                "type": "If",
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@body('Parse_JSON')?['repository']",
+                                "AKK"
+                            ]
+                        }
+                    ]
+                },
+                "actions": {
+                    "HTTP_Call_to_AKK": {
+                        "type": "Http",
+                        "inputs": {
+                            "uri": "@{parameters('AKK')}/@{variables('endpointurl')}",
+                            "method": "@variables('RequestType')",
+                            "headers": "@outputs('Add_Authorization_property_into_header')",
+                            "body": "@triggerBody()"
+                        },
+                        "runtimeConfiguration": {
+                            "contentTransfer": {
+                                "transferMode": "Chunked"
+                            }
+                        }
+                    },
+                    "Response_AKK": {
+                        "type": "Response",
+                        "kind": "Http",
+                        "inputs": {
+                            "statusCode": "@outputs('HTTP_Call_to_AKK')?['statusCode']",
+                            "body": "@body('HTTP_Call_to_AKK')"
+                        },
+                        "runAfter": {
+                            "HTTP_Call_to_AKK": [
+                                "SUCCEEDED",
+                                "TIMEDOUT",
+                                "SKIPPED",
+                                "FAILED"
+                            ]
+                        }
+                    }
+                },
+                "else": {
+                    "actions": {
+                        "Condition_to_check_if_MSE": {
+                            "type": "If",
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@body('Parse_JSON')?['repository']",
+                                            "MSE"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "actions": {
+                                "HTTP_Call_to_MSE": {
+                                    "type": "Http",
+                                    "inputs": {
+                                        "uri": "@{parameters('MSE')}/@{variables('endpointurl')}",
+                                        "method": "@variables('RequestType')",
+                                        "headers": "@outputs('Add_Authorization_property_into_header')",
+                                        "body": "@triggerBody()"
+                                    },
+                                    "runtimeConfiguration": {
+                                        "contentTransfer": {
+                                            "transferMode": "Chunked"
+                                        }
+                                    }
+                                },
+                                "Response_MSE": {
+                                    "type": "Response",
+                                    "kind": "Http",
+                                    "inputs": {
+                                        "statusCode": "@outputs('HTTP_Call_to_MSE')?['statusCode']",
+                                        "body": "@body('HTTP_Call_to_MSE')"
+                                    },
+                                    "runAfter": {
+                                        "HTTP_Call_to_MSE": [
+                                            "SUCCEEDED",
+                                            "TIMEDOUT",
+                                            "SKIPPED",
+                                            "FAILED"
+                                        ]
+                                    }
+                                }
+                            },
+                            "else": {
+                                "actions": {
+                                    "Response_-_Invalid_Token": {
+                                        "type": "Response",
+                                        "kind": "Http",
+                                        "inputs": {
+                                            "statusCode": 200,
+                                            "body": "Invalid repository name - @{body('Parse_JSON')?['repository']}\n\n"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Add_Authorization_property_into_header": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "HTTP_Call_to_Child_Logic_App": {
+                "type": "Http",
+                "inputs": {
+                    "uri": "@parameters('ChildLogicApp')",
+                    "method": "GET",
+                    "headers": {
+                        "token": "@{triggerOutputs()?['headers']['token']}"
+                    }
+                },
+                "runAfter": {
+                    "Variable_-_endpointurl": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                }
+            },
+            "Parse_JSON": {
+                "type": "ParseJson",
+                "inputs": {
+                    "content": "@outputs('Compose_-_Decode_Base_64')",
+                    "schema": {
+                        "properties": {
+                            "providerCodes": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "repository": {
+                                "type": "string"
+                            },
+                            "tenantSecret": {
+                                "type": "string"
+                            },
+                            "tenantUUID": {
+                                "type": "string"
+                            },
+                            "userIdentifier": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "runAfter": {
+                    "Compose_-_Decode_Base_64": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Variable_-_Request_Type": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "RequestType",
+                            "type": "string",
+                            "value": "@{triggerOutputs()?['headers']['RequestType']}"
+                        }
+                    ]
+                },
+                "runAfter": {}
+            },
+            "Variable_-_endpointurl": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "endpointurl",
+                            "type": "string",
+                            "value": "@{triggerOutputs()?['headers']['endpointurl']}"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Variable_-_Request_Type": [
+                        "SUCCEEDED"
+                    ]
+                }
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "triggers": {
+            "When_a_HTTP_request_is_received": {
+                "type": "Request",
+                "kind": "Http"
+            }
+        }
+    },
+    "kind": "Stateful"
+}

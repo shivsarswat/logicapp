@@ -1,0 +1,11 @@
+name: Call Reusable Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-reusable-workflow:
+    uses: tr/customerdms-infra/.github/workflows/build.yml@azure-pipelines
+    with:
+      inputs:
+        EnvironmentsToDeploy: 'dev'

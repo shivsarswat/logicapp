@@ -1,0 +1,87 @@
+name: Build and Deploy Logic App. 
+
+on:  
+  workflow_call:
+    inputs:
+      LogicApp_Name:
+        required: true
+        type: 'string'
+      ResourceGroup_Name:
+        required: true
+        type: 'string'      
+      Environment:
+        required: true
+        type: 'string'
+
+    secrets:
+      Azure_Secret:
+        required: true
+      GH_PAT_CUSTOMERDMS_LOGICAPP_URL_REDIRECT:
+        required: true
+
+jobs:
+  logic_app_build: 
+    name: Build 
+    runs-on: ubuntu-latest
+    steps: 
+    - name: Parameters
+      run: (echo LogicApp_Name = ${{ inputs.LogicApp_Name }}; echo ResourceGroup_Name = ${{ inputs.ResourceGroup_Name }}; echo Environment = ${{ inputs.Environment }}; )
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        repository: 'tr/customerdms-logicapp-url-redirect'
+        ref: 'feat/workflow-changes'
+        token: ${{ secrets.GH_PAT_CUSTOMERDMS_LOGICAPP_URL_REDIRECT }}
+        path: logicapp-url-redirect-repo
+    - name: Package logic app
+      run: (cd logicapp-url-redirect-repo; mkdir output; ls; zip -r ./output/logic.zip . -x .\* -x ".gitignore" -x "README")
+    - name: Upload app zip package
+      uses: actions/upload-artifact@v4
+      with:
+        name: logic
+        path: ./logicapp-url-redirect-repo/output/
+        retention-days: 1 
+
+  logic_app_deploy: 
+    name: Deploy 
+    runs-on: ubuntu-latest
+    needs: [logic_app_build]
+    environment: 
+      name: ${{ inputs.Environment }}
+    steps:             
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        repository: 'tr/customerdms-logicapp-url-redirect'
+        ref: 'feat/workflow-changes'
+        token: ${{ secrets.GH_PAT_CUSTOMERDMS_LOGICAPP_URL_REDIRECT }}
+        path: logicapp-url-redirect-repo
+    - name: Login via Az module
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.Azure_Secret }}
+        enable-AzPSSession: true 
+    - uses: actions/download-artifact@v4
+      with:
+        name: logic
+        path: ./output/
+        
+    - name: Get publish Profile
+      id: publishprofile
+      uses: azure/powershell@v1
+      with:
+        inlineScript: |
+          $profile = Get-AzWebAppPublishingProfile `
+              -ResourceGroupName ${{ inputs.ResourceGroup_Name }} `
+              -Name ${{ inputs.LogicApp_Name }}
+          $profile = $profile.Replace("`r", "").Replace("`n", "")
+          Write-Output "::set-output name=profile::$profile"
+        azPSVersion: latest
+
+    - name: Deploy to Azure Logic App
+      uses: Azure/functions-action@v1.3.1
+      id: la
+      with:
+        app-name: ${{ inputs.ResourceGroup_Name }}
+        package: './output/logic.zip'
+        publish-profile: ${{ steps.publishprofile.outputs.profile }}
